@@ -1,0 +1,631 @@
+/* ====================================
+   VARIABLES Y CONFIGURACIÓN
+   ==================================== */
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-light: #dbeafe;
+    --primary-dark: #1e40af;
+    
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --success-dark: #059669;
+    
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --danger-dark: #dc2626;
+    
+    --gold: #f59e0b;
+    --silver: #94a3b8;
+    --bronze: #d97706;
+    
+    --dark: #0f172a;
+    --dark-light: #1e293b;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    
+    --bg-page: #f8fafc;
+    --bg-white: #ffffff;
+    --bg-light: #f1f5f9;
+    
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    
+    --radius: 8px;
+    --radius-sm: 6px;
+    --radius-lg: 12px;
+    
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+}
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+img, svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* ====================================
+   LAYOUT
+   ==================================== */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.main-container {
+    padding: 2.5rem 0;
+    min-height: calc(100vh - 72px);
+}
+
+/* ====================================
+   NAVBAR MEJORADO
+   ==================================== */
+.navbar {
+    background: var(--bg-white);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    letter-spacing: -0.02em;
+    transition: all 0.2s;
+}
+
+.navbar-brand:hover {
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.navbar-nav {
+    display: flex;
+    list-style: none;
+    gap: 0.5rem;
+}
+
+.nav-link {
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.938rem;
+    padding: 0.625rem 1rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+}
+
+.nav-link:hover {
+    background: var(--bg-light);
+    color: var(--text-primary);
+}
+
+/* ====================================
+   CARDS PREMIUM
+   ==================================== */
+.card {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+    transform: none;
+}
+
+.card-header {
+    background: var(--bg-white);
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* ====================================
+   COMPETITION HEADER
+   ==================================== */
+.competition-header {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-left: 4px solid var(--primary);
+    box-shadow: var(--shadow-md);
+}
+
+.competition-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 1rem;
+}
+
+/* ====================================
+   ESTADÍSTICAS
+   ==================================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+}
+
+.stats-box {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.stats-box:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-md);
+    transform: none;
+}
+
+.stats-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+}
+
+.stats-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.stats-value.large {
+    font-size: 2rem;
+}
+
+/* ====================================
+   TEAM CARDS CON PODIO
+   ==================================== */
+.team-card {
+    position: relative;
+    transition: all 0.3s;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.team-card.qualified {
+    border-left: 4px solid transparent;
+}
+
+.team-card.qualified.rank-1 {
+    border-left-color: var(--gold);
+    background: var(--bg-white);
+}
+
+.team-card.qualified.rank-2 {
+    border-left-color: var(--silver);
+    background: var(--bg-white);
+}
+
+.team-card.qualified.rank-3 {
+    border-left-color: var(--bronze);
+    background: var(--bg-white);
+}
+
+.team-card.disqualified {
+    background: var(--danger-light);
+    border-left: 4px solid var(--danger);
+    opacity: 0.85;
+}
+
+.position-badge {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+}
+
+.position-badge.gold {
+    background: var(--gold);
+    color: white;
+    border: 2px solid var(--border);
+}
+
+.position-badge.silver {
+    background: var(--silver);
+    color: white;
+    border: 2px solid var(--border);
+}
+
+.position-badge.bronze {
+    background: var(--bronze);
+    color: white;
+    border: 2px solid var(--border);
+}
+
+.position-badge.regular {
+    background: var(--bg-white);
+    color: var(--text-primary);
+    border: 2px solid var(--border);
+    font-size: 1rem;
+}
+
+/* ====================================
+   BADGES Y ETIQUETAS
+   ==================================== */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.813rem;
+    border-radius: 6px;
+    letter-spacing: 0.01em;
+}
+
+.badge-success {
+    background: var(--success-light);
+    color: var(--success-dark);
+    border: 1px solid var(--success);
+}
+
+.badge-danger {
+    background: var(--danger-light);
+    color: var(--danger-dark);
+    border: 1px solid var(--danger);
+}
+
+.badge-warning {
+    background: var(--warning-light);
+    color: #92400e;
+    border: 1px solid var(--warning);
+}
+
+.badge-primary {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border: 1px solid var(--primary);
+}
+
+.badge-secondary {
+    background: var(--bg-light);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.badge-info {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #3b82f6;
+}
+
+.badge.large {
+    padding: 0.5rem 1rem;
+    font-size: 0.938rem;
+}
+
+/* ====================================
+   BOTONES
+   ==================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.938rem;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: -0.01em;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--bg-light);
+    color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+    background: var(--border);
+    color: var(--text-primary);
+}
+
+.btn-group {
+    display: flex;
+    gap: 0;
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.btn-group .btn {
+    border-radius: 0;
+    border-right: 1px solid var(--border);
+}
+
+.btn-group .btn:last-child {
+    border-right: none;
+}
+
+/* ====================================
+   UTILIDADES
+   ==================================== */
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted); }
+.text-success { color: var(--success); }
+.text-danger { color: var(--danger); }
+.text-warning { color: var(--warning); }
+
+.mb-4 { margin-bottom: 1.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mt-4 { margin-top: 1.5rem; }
+
+.d-flex { display: flex; }
+.align-items-center { align-items: center; }
+.justify-content-between { justify-content: space-between; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 1rem; }
+
+/* ====================================
+   RESPONSIVE
+   ==================================== */
+@media (max-width: 768px) {
+    body { font-size: 13px; }
+    .container { padding: 0 1rem; }
+    .main-container { padding: 1.25rem 0; }
+    .competition-header h2 { font-size: 1.25rem; }
+    .stats-value.large { font-size: 1.75rem; }
+    .position-badge { width: 36px; height: 36px; font-size: 0.938rem; }
+    .card-body { padding: 1rem; }
+
+    .navbar .container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .navbar-nav {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 0.375rem;
+    }
+
+    .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    /* Ajustar grid de equipos en móvil */
+    .team-card .card-body > div {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+    
+    .team-card .position-badge {
+        top: 0.75rem;
+        left: 0.75rem;
+    }
+    
+    .team-card .card-body {
+        margin-left: 0 !important;
+        padding-top: 3.5rem !important;
+    }
+}
+
+/* ====================================
+   PODIO COMPACTO - 1° Y 2° LUGAR
+   ==================================== */
+
+.podium-header {
+    background: var(--bg-white);
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.podium-compact {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.podium-card-compact {
+    position: relative;
+    background: var(--bg-white);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.3s;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+}
+
+.podium-card-compact:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.podium-card-compact.podium-gold {
+    border-color: var(--gold);
+    background: var(--bg-white);
+}
+
+.podium-card-compact.podium-silver {
+    border-color: var(--silver);
+    background: var(--bg-white);
+}
+
+.podium-card-compact.podium-empty {
+    border: 2px dashed var(--border);
+    background: var(--bg-light);
+    opacity: 0.6;
+    cursor: default;
+}
+
+.podium-card-compact.podium-empty:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.podium-medal {
+    width: 100%;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+}
+
+.podium-medal-text {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+}
+
+.podium-rank-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    font-weight: 700;
+    padding: 0.25rem 0.625rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.podium-content {
+    width: 100%;
+}
+
+.podium-dorsal-compact {
+    background: var(--bg-light);
+    color: var(--primary);
+    font-weight: 700;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    display: inline-block;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--border);
+}
+
+.podium-name-compact {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.375rem;
+    color: var(--text-primary);
+}
+
+.podium-category-compact {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.625rem;
+}
+
+.podium-time-compact {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.podium-empty-text {
+    color: var(--text-muted);
+    font-size: 0.813rem;
+    line-height: 1.4;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .podium-compact {
+        grid-template-columns: 1fr;
+    }
+    
+    .podium-medal {
+        height: 2.25rem;
+    }
+
+    .podium-card-compact {
+        min-height: 200px;
+    }
+    
+    .podium-time-compact {
+        font-size: 1.125rem;
+    }
+}
+

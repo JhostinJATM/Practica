@@ -1,0 +1,64 @@
+# === Python / Django ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.sqlite3
+db.sqlite3
+
+# === Distribution / Packaging ===
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+
+# === Virtual Environments ===
+.venv/
+venv/
+env/
+.uv/
+
+# === Environment Variables (CRÍTICO) ===
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# === Django Static & Media ===
+staticfiles/
+media/
+logs/
+*.log
+
+# === Front-end ===
+node_modules/
+package-lock.json
+yarn.lock
+npm-debug.log*
+yarn-error.log*
+
+# === Testing / Coverage ===
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# === Type Checking ===
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# === IDE / Editor ===
+.vscode/
+.idea/
+*.code-workspace
+.python-version
+
+# === OS Files ===
+.DS_Store
+Thumbs.db
+
+# === Celery (si lo usas) ===
+celerybeat-schedule
+celerybeat.pid

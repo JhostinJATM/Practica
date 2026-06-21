@@ -1,0 +1,261 @@
+schema: spec-driven
+
+context: |
+  RASC UNL Vision
+
+  Fork del sistema Server5K para competencias atléticas.
+
+  Objetivo:
+  Eliminar el registro manual de tiempos realizado por jueces cronometristas
+  e incorporar un sistema de visión por computadora que detecte automáticamente
+  cruces de meta, identifique dorsales mediante OCR y registre tiempos de forma
+  automática. Los jueces dejan de registrar tiempos; su única función pasa a ser
+  la validación de registros cuando la confianza OCR es inferior al 95%.
+
+  Arquitectura:
+
+  Existen dos proyectos independientes.
+
+  Backend:
+
+  - server5k-fork
+  - Django
+  - Django REST Framework
+
+  Edge:
+
+  - rasc-vision-edge
+  - Python
+  - OpenCV
+  - EasyOCR
+  - SQLite
+  - RTSP
+  - Simulador (para desarrollo sin dispositivo Edge y sin cámaras IP reales)
+
+  Restricciones:
+
+  - El proyecto Edge NO debe generarse dentro de server5k-fork.
+  - El proyecto Edge debe poder ejecutarse independientemente.
+  - El simulador debe poder ejecutarse independientemente.
+  - Todo procesamiento de visión debe ejecutarse fuera de Django.
+  - Django únicamente recibe y administra registros procesados.
+
+  Cámaras:
+
+  - Son entidades del dominio.
+  - Únicamente proporcionan video RTSP.
+  - Un dispositivo Edge puede conectarse a múltiples cámaras.
+
+  Token de competencia:
+
+  - Al crear una competencia, el sistema debe generar automáticamente un token
+    único (UUID) asociado a esa competencia.
+  - El token debe ser visible en el panel de administración de la competencia.
+  - El simulador y el Edge deben usar ese token en sus variables de entorno
+    (EDGE_TOKEN) para conectarse exclusivamente a la competencia correcta.
+  - El backend debe validar que los registros enviados con un token correspondan
+    a la competencia asociada a dicho token.
+  - Si no hay competencia activa con ese token, el backend debe rechazar los
+    registros con HTTP 400.
+
+  Identificación de dorsales:
+
+  - El Edge/simulador envía al backend: dorsal (número detectado, no team_id),
+    tiempo_ms, y confianza_ocr.
+  - El Edge real envía además evidencia_imagen (JPEG codificado en base64).
+    El simulador NO envía imágenes.
+  - El servidor asocia el dorsal al equipo correspondiente mediante el campo
+    Equipo.number, que es único dentro de una competencia.
+  - El Edge no realiza lookup de equipos; el backend recibe el dorsal y lo
+    resuelve contra la competencia activa.
+
+  Trazabilidad del registro:
+
+  Cada registro de tiempo (RegistroTiempo) debe incluir los siguientes atributos
+  de trazabilidad:
+
+  - origen: "automatico" | "manual".
+    * "automatico": OCR >= 95%, el registro se valida sin intervención humana.
+    * "manual": OCR < 95%, el registro requiere validación por un juez.
+  - confianza_ocr: porcentaje (0-100), obligatorio en todos los registros.
+  - evidencia_imagen: imagen capturada por el Edge en el momento del cruce
+    (nula si el registro proviene del simulador).
+  - estado: "validado" | "pendiente" | "corregido" | "descalificado"
+    * "validado": confirmado (automáticamente si origen = "automatico", o por un
+      juez si origen = "manual").
+    * "pendiente": requiere validación manual (OCR < 95%, origen = "manual").
+    * "corregido": dorsal corregido por un juez (origen = "manual").
+    * "descalificado": participante descalificado por un juez (origen = "manual").
+  - motivo_descalificacion: texto obligatorio solo cuando estado = "descalificado"
+    y origen = "manual". Describe la razón de la descalificación.
+
+  OCR:
+
+  - Confianza mínima para validación automática: 95%.
+
+  Si OCR >= 95%:
+
+  * Registrar automáticamente (origen = "automatico").
+  * Actualizar clasificación(Importante el pagina de resultados debe reflejar los cambios en tiempo real, 
+    en cada tiempo regsitrado).
+
+  Si OCR < 95%:
+
+  - Crear RegistroTiempo con origen = "manual" y estado = "pendiente".
+  - Notificar jueces mediante WebSocket en tiempo real.
+  - El registro aparece en el panel de control de jueces para validación manual.
+  - Los jueces pueden: confirmar dorsal, corregir dorsal, o descalificar
+    (con motivo obligatorio en motivo_descalificacion).
+
+  Validación manual:
+
+  Flujo:
+  1. El Edge envía al backend: dorsal detectado, tiempo_ms, confianza_ocr,
+     e imagen capturada (solo Edge real; el simulador no envía imágenes).
+  2. El backend almacena el registro con estado = "pendiente".
+  3. Se notifica a los jueces vía WebSocket en tiempo real.
+  4. En el panel de control (template Django), los jueces ven:
+     - La evidencia capturada (imagen del cruce, si fue enviada).
+     - El dorsal detectado por OCR.
+     - El nivel de confianza OCR.
+     - El tiempo registrado.
+  5. Los jueces gestionan los registros pendientes mediante las acciones:
+     confirmar, corregir, o descalificar (con motivo obligatorio).
+
+  Los jueces NO registran tiempos. Su única función es validar registros
+  cuya confianza OCR sea inferior al 95%. Los jueces deben poder:
+
+  - Registrarse mediante una página web pública de registro.
+  - Iniciar sesión para acceder al panel de validación.
+  - Ingresar a un panel de control para validar registros pendientes.
+  - Ver registros pendientes con su evidencia (imagen, dorsal detectado,
+    confianza OCR, tiempo registrado).
+  - Ver imagen capturada del cruce de meta (no hay imagen para desarrollo
+    con simulador Edge).
+  - Confirmar dorsal (cambia estado a "validado").
+  - Corregir dorsal (cambia estado a "corregido", el dorsal original se
+    preserva para trazabilidad).
+  - Descalificar participante (cambia estado a "descalificado"). Al
+    descalificar, el juez debe escribir obligatoriamente el motivo de la
+    descalificación.
+
+  Toda acción manual debe registrarse en auditoría (quién, qué, cuándo,
+  valor anterior, valor nuevo).
+
+  Orden de construcción:
+
+  1. Backend (Django + modelos + API + validación manual).
+  2. Simulador (generación de eventos sintéticos).
+  3. Edge (procesamiento real con OpenCV + EasyOCR + RTSP).
+
+  Base de datos:
+
+  Backend:
+
+  - PostgreSQL 16 (obligatorio; no existen registros previos que migrar).
+  - La base de datos se crea desde cero.
+
+  Edge:
+
+  - SQLite
+
+  Simulación:
+
+  Mientras no exista Raspberry Pi disponible:
+
+  - Utilizar simulador obligatorio.
+  - No requiere cámaras reales.
+  - No requiere OCR real.
+  - No requiere imágenes reales.
+  - Debe generar eventos sintéticos para pruebas.
+
+  El simulador envía registros al backend mediante HTTP POST con autenticación Token. Cada envío contiene:
+
+  - dorsal: número entero dentro del rango configurable (DORSAL_MIN, DORSAL_MAX).
+  - tiempo_ms: tiempo en milisegundos, incremental en cada envío.
+  - confianza_ocr: porcentaje float aleatorio entre CONFIANZA_MIN y CONFIANZA_MAX
+    (esto permite probar ambos flujos: >=95% validación automática, <95% pendiente).
+  - imagen: string base64 de un JPEG placeholder mínimo generado programáticamente(en desarrollo no enviar imagenes).
+  - persistir registros en SQLite local del simulador hasta que el backend confirme recepción exitosa. En caso de error, reintentar envío cada 10 segundos.
+
+  El backend responde con HTTP 201 y el objeto JSON del registro creado, incluyendo
+  el estado resultante (validado o pendiente) y el equipo_id resuelto.
+
+  El simulador debe tener una interfaz gráfica (tkinter) que muestre:
+    - Indicador visual de conexión al backend (conectado/desconectado).
+    - Nombre de la competencia activa.
+    - Modo automático (envío periódico configurable con numero de dorsales a usar) y modo manual.
+    - Formulario para envío manual de registros (dorsal, tiempo, confianza OCR).
+    - Log en vivo con timestamp y resultado de cada envío.
+
+  Reglas de desarrollo:
+  - Mantener consistencia con la arquitectura existente de Server5K.
+  - Aplicar buenas prácticas de programación en el código nuevo o modificado.
+  - Evitar duplicación innecesaria de código cuando sea razonable.
+  - Mantener módulos con responsabilidades claras.
+  - Seguir principios básicos de Clean Code.
+  - Implementar manejo adecuado de errores y excepciones.
+  - Validar datos de entrada en todos los endpoints y formularios.
+  - Seguir buenas prácticas para APIs REST utilizando recursos, verbos HTTP y códigos de estado apropiados.
+  - Escribir pruebas unitarias para todos los componentes.
+  - Mantener cobertura de pruebas razonable para las nuevas y existentes funcionalidades.
+  - Utilizar tipado estático cuando las tecnologías utilizadas lo permitan.
+  - Seguir convenciones de código y estilo ya utilizadas por el proyecto.
+  - Utilizar linters y herramientas de formateo disponibles en cada proyecto.
+  - Utilizar Git y Conventional Commits.
+  - Documentar decisiones arquitectónicas importantes mediante ADR.
+  - Priorizar mantenibilidad y claridad sobre optimizaciones prematuras.
+  - Considerar buenas prácticas de seguridad para autenticación, autorización y validación de datos.
+  - Generar toda la documentación técnica en español.
+
+  API:
+  - Aplicar principios RESTful: recursos nombrados, verbos HTTP correctos,
+    códigos de estado semánticos, respuestas JSON consistentes.
+
+  Documentación:
+  - Documentar decisiones arquitectónicas (ADR).
+  - Documentar la API RESTful con Swagger/OpenAPI.
+  - README.md actualizado con setup local (con y sin Docker).
+  - Todas las respuestas y documentos deben generarse en español.
+
+  PROCESO SDD OBLIGATORIO:
+  Para toda nueva funcionalidad o cambio:
+
+  1. Ejecutar proceso de descubrimiento de requisitos.
+  2. Utilizar grill-me skill para aclarar requisitos.
+  3. Realizar al menos 5 preguntas de aclaración cuando existan dudas.
+  4. No generar spec.md sin aprobación explícita del proposal.
+  5. No generar design.md sin aprobación explícita del spec.
+  6. No generar tasks.md sin aprobación explícita del design.
+  7. Detenerse después de cada artefacto y solicitar validación del usuario.
+
+rules:
+
+  proposal:
+    - Must use grill-me skill
+    - Must ask clarification questions before generating proposal
+    - Must wait for user approval before finalizing proposal
+    - Keep proposals under 500 words
+    - Always include a "Non-goals" section
+    - Must be written in Spanish
+
+  designs:
+    - Must wait for spec approval
+    - Must use c4-architecture skill 
+    - Must use uml skill
+    - Must be written in Spanish
+
+  specs:
+    - Must use gherkin-authoring skill
+    - Must wait for proposal approval
+    - Must not generate design automatically
+    - Must be written in Spanish
+
+  tasks:
+    - Must be generated only after approved specs
+    - Must be grouped by feature
+    - Must be grouped by backend and edge modules
+    - Must identify dependencies
+    - Must include testing tasks
+    - Must include documentation tasks
+    - Must be written in Spanish
