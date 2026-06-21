@@ -18,6 +18,7 @@ Opciones:
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.utils.crypto import get_random_string
+from django.contrib.auth.models import User
 import random
 import os
 import string
@@ -41,8 +42,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--jueces',
             type=int,
-            default=50,
-            help='Número de jueces/equipos a crear (default: 50)',
+            default=10,
+            help='Número de jueces/equipos a crear (default: 10)',
         )
         parser.add_argument(
             '--competencia',
@@ -88,7 +89,8 @@ class Command(BaseCommand):
             Equipo.objects.all().delete()
             Juez.objects.all().delete()
             Competencia.objects.all().delete()
-            self.stdout.write(self.style.SUCCESS('✓ Datos eliminados correctamente'))
+            User.objects.filter(is_superuser=False).delete()
+            self.stdout.write(self.style.SUCCESS('  OK Datos eliminados correctamente'))
         
         # Crear competencia
         self.stdout.write('\nCreando competencia...')
@@ -103,7 +105,7 @@ class Command(BaseCommand):
             is_active=True,
             is_running=False
         )
-        self.stdout.write(self.style.SUCCESS(f'✓ Competencia creada: {competencia.name}'))
+        self.stdout.write(self.style.SUCCESS(f'OK Competencia creada: {competencia.name}'))
         
         # Lista de nombres de equipos
         nombres_equipos = [
@@ -144,8 +146,17 @@ class Command(BaseCommand):
             else:
                 password = f"juez{i}123"
             
-            # Crear juez
+            # Crear usuario Django + juez vinculado
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                first_name=f"Juez",
+                last_name=f"#{i}",
+                email=f"juez{i}@5k.local",
+            )
+            
             juez = Juez.objects.create(
+                user=user,
                 username=username,
                 first_name=f"Juez",
                 last_name=f"#{i}",
@@ -175,46 +186,46 @@ class Command(BaseCommand):
                 'dorsal': dorsal,
             })
             
-            self.stdout.write(f'  ✓ Juez {i}/{num_jueces}: @{username} → Equipo: {nombre_equipo} (Dorsal {dorsal})')
+            self.stdout.write(f'  OK Juez {i}/{num_jueces}: @{username} -> Equipo: {nombre_equipo} (Dorsal {dorsal})')
         
         # Generar archivo de credenciales
         credenciales_path = os.path.join(os.getcwd(), 'credenciales_jueces.txt')
         
         with open(credenciales_path, 'w', encoding='utf-8') as f:
-            f.write('═'*70 + '\n')
+            f.write('='*70 + '\n')
             f.write('CREDENCIALES DE ACCESO - SISTEMA 5K\n')
-            f.write('═'*70 + '\n')
+            f.write('='*70 + '\n')
             f.write(f'Generado: {timezone.now().strftime("%d/%m/%Y %H:%M:%S")}\n')
             f.write(f'Competencia: {competencia.name}\n')
             f.write(f'Modo: {"PRODUCCIÓN" if is_production else "DESARROLLO"}\n')
-            f.write('═'*70 + '\n\n')
+            f.write('='*70 + '\n\n')
             
             for cred in credenciales:
                 f.write(f"JUEZ #{cred['numero']:02d}\n")
                 f.write(f"  Usuario: {cred['username']}\n")
                 f.write(f"  Contraseña: {cred['password']}\n")
                 f.write(f"  Equipo: {cred['equipo']} (Dorsal {cred['dorsal']})\n")
-                f.write('─'*70 + '\n')
+                f.write('-'*70 + '\n')
             
-            f.write('\n' + '═'*70 + '\n')
+            f.write('\n' + '='*70 + '\n')
             if is_production:
                 f.write('IMPORTANTE: Guarda este archivo en un lugar seguro.\n')
                 f.write('    Estas contraseñas son únicas y no se pueden recuperar.\n')
             else:
                 f.write('NOTA: Estas credenciales son para desarrollo/pruebas.\n')
                 f.write('    Use --production para generar contraseñas seguras.\n')
-            f.write('═'*70 + '\n')
+            f.write('='*70 + '\n')
         
         # Resumen
-        self.stdout.write(self.style.SUCCESS('\n' + '═'*60))
+        self.stdout.write(self.style.SUCCESS('\n' + '='*60))
         self.stdout.write(self.style.SUCCESS('  RESUMEN DE DATOS GENERADOS'))
-        self.stdout.write(self.style.SUCCESS('═'*60))
+        self.stdout.write(self.style.SUCCESS('='*60))
         self.stdout.write(f'  Competencia: {competencia.name}')
         self.stdout.write(f'  Fecha programada: {competencia.datetime.strftime("%d/%m/%Y %H:%M")}')
         self.stdout.write(f'  Total Jueces: {Juez.objects.count()}')
         self.stdout.write(f'  Total Equipos: {Equipo.objects.count()}')
         self.stdout.write(f'  Modo: {"PRODUCCIÓN" if is_production else "DESARROLLO"}')
-        self.stdout.write(self.style.SUCCESS('═'*60))
+        self.stdout.write(self.style.SUCCESS('='*60))
         
         self.stdout.write(self.style.WARNING(f'\nCredenciales guardadas en: {credenciales_path}'))
         

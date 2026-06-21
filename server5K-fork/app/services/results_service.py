@@ -38,8 +38,9 @@ class ResultsService:
             
             # Filtrar registros del equipo (equipo ya pertenece a una competencia)
             registros = RegistroTiempo.objects.filter(
-                equipo=equipo
-            ).order_by('tiempo')[:self.MAX_REGISTROS_CONSIDERADOS]
+                team=equipo,
+                estado__in=['validado', 'corregido']
+            ).order_by('time')[:self.MAX_REGISTROS_CONSIDERADOS]
             
             if not registros:
                 return {

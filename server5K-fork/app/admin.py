@@ -71,11 +71,12 @@ class CompetenciaAdmin(admin.ModelAdmin):
         'total_equipos',
         'total_registros',
         'is_active',
+        'token_display',
         'acciones_competencia',
     ]
     list_filter = [EstadoCompetenciaFilter, 'is_active']
     search_fields = ['name']
-    readonly_fields = ['started_at', 'finished_at']
+    readonly_fields = ['started_at', 'finished_at', 'token']
     list_per_page = 25
     actions = ['iniciar_competencia', 'detener_competencia']
     
@@ -84,7 +85,7 @@ class CompetenciaAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Información General', {
-            'fields': ('name', 'datetime', 'is_active')
+            'fields': ('name', 'datetime', 'is_active', 'token')
         }),
         ('Estado de la Competencia', {
             'fields': ('is_running', 'started_at', 'finished_at'),
@@ -93,6 +94,19 @@ class CompetenciaAdmin(admin.ModelAdmin):
     )
 
     inlines = [EquipoInline]
+
+    def token_corto(self, obj):
+        return str(obj.token)[:8]
+    token_corto.short_description = 'Token'
+
+    def token_display(self, obj):
+        token_str = str(obj.token)
+        return format_html(
+            '<code style="font-size: 11px;" title="{}">{}</code>',
+            token_str,
+            token_str[:8] + '...'
+        )
+    token_display.short_description = 'Token'
 
     def total_equipos(self, obj):
         return obj.teams.count()

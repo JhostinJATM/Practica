@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Panel de Validacion{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2 style="margin: 0;">Panel de Validacion</h2>
+    <div>
+        <span style="margin-right: 1rem;">Juez: <strong>{{ juez.get_full_name }}</strong></span>
+        <a href="{% url 'ui:juez_logout' %}" style="padding: 0.4rem 0.8rem; background: #dc2626; color: white; text-decoration: none; border-radius: 6px; font-size: 0.875rem; font-weight: 600;">Cerrar Sesion</a>
+    </div>
+</div>
+
+{% if not competencia_activa %}
+<div style="background: #fef3c7; border: 1px solid #fcd34d; padding: 2rem; border-radius: 8px; text-align: center;">
+    <p style="font-size: 1.1rem; color: #92400e; margin: 0;">No hay competencia activa en este momento.</p>
+</div>
+{% else %}
+<div style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--bg-light); border-radius: 8px; display: flex; gap: 1.5rem;">
+    <span>Competencia: <strong>{{ competencia_activa.name }}</strong></span>
+    <span>Estado: <span style="color: #16a34a; font-weight: 600;">En curso</span></span>
+</div>
+
+<div id="pendientes-container" style="display: flex; flex-direction: column; gap: 1rem;">
+    <p style="color: var(--text-secondary);">Cargando registros pendientes...</p>
+</div>
+
+<script>
+const COMPETENCIA_ID = {{ competencia_activa.id }};
+const WS_URL = 'ws://' + window.location.host + '/ws/juez/' + '{{ juez.id }}/' + '?token=' + getCookie('access_token');
+
+function getCookie(name) {
+    let value = "; " + document.cookie;
+    let parts = value.split("; " + name + "=");
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return '';
+}
+
+function cargarPendientes() {
+    fetch('/api/validacion/pendientes/')
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('pendientes-container');
+            if (!data.pendientes || data.pendientes.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 2rem;">No hay registros pendientes de validacion.</p>';
+                return;
+            }
+            let html = '';
+            data.pendientes.forEach(r => {
+                html += renderRegistro(r);
+            });
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            document.getElementById('pendientes-container').innerHTML =
+                '<p style="color: #dc2626;">Error al cargar registros. Verifica tu conexion.</p>';
+        });
+}
+
+function renderRegistro(r) {
+    return `
+    <div id="reg-${r.record_id}" class="registro-card" style="background: var(--bg-white); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+            <div style="flex: 1; min-width: 200px;">
+                <p><strong>Dorsal detectado:</strong> ${r.dorsal_detectado}</p>
+                <p><strong>Tiempo:</strong> ${formatearTiempo(r.tiempo_ms)}</p>
+                <p><strong>Confianza OCR:</strong>
+                    <span style="color: ${r.confianza_ocr >= 95 ? '#16a34a' : '#dc2626'}; font-weight: 600;">
+                        ${r.confianza_ocr}%
+                    </span>
+                </p>
+                <p><strong>Equipo:</strong> ${r.equipo_nombre} (#${r.equipo_dorsal})</p>
+            </div>
+            <div style="flex: 0 0 auto; min-width: 200px;">
+                ${r.evidencia_url ? '<img src="' + r.evidencia_url + '" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-bottom: 0.5rem;">' : '<p style="color: var(--text-secondary); font-style: italic;">Sin evidencia de imagen</p>'}
+            </div>
+            <div style="flex: 0 0 auto; display: flex; gap: 0.5rem; align-items: center;">
+                <button onclick="confirmarRegistro('${r.record_id}')"
+                    style="padding: 0.5rem 1rem; background: #16a34a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    Confirmar
+                </button>
+                <button onclick="mostrarCorregir('${r.record_id}')"
+                    style="padding: 0.5rem 1rem; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    Corregir
+                </button>
+                <button onclick="mostrarDescalificar('${r.record_id}')"
+                    style="padding: 0.5rem 1rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    Descalificar
+                </button>
+            </div>
+        </div>
+        <div id="acciones-${r.record_id}" style="margin-top: 0.5rem;"></div>
+    </div>`;
+}
+
+function formatearTiempo(ms) {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    const ms2 = ms % 1000;
+    return `${h}h ${m}m ${s}s ${ms2}ms`;
+}
+
+function confirmarRegistro(recordId) {
+    fetch('/api/validacion/' + recordId + '/confirmar/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            document.getElementById('reg-' + recordId).remove();
+            if (document.querySelectorAll('.registro-card').length === 0) {
+                document.getElementById('pendientes-container').innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 2rem;">No hay registros pendientes de validacion.</p>';
+            }
+        });
+}
+
+function mostrarCorregir(recordId) {
+    const container = document.getElementById('acciones-' + recordId);
+    container.innerHTML =
+        '<input type="number" id="dorsal-input-' + recordId + '" placeholder="Nuevo dorsal" min="1" style="padding: 0.4rem; border: 1px solid var(--border); border-radius: 4px; margin-right: 0.5rem;">' +
+        '<button onclick="corregirDorsal(\'' + recordId + '\')" style="padding: 0.4rem 0.8rem; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer;">Aplicar</button>';
+}
+
+function corregirDorsal(recordId) {
+    const dorsal = document.getElementById('dorsal-input-' + recordId).value;
+    fetch('/api/validacion/' + recordId + '/corregir/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ dorsal_corregido: parseInt(dorsal) })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        document.getElementById('reg-' + recordId).remove();
+        if (document.querySelectorAll('.registro-card').length === 0) {
+            document.getElementById('pendientes-container').innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 2rem;">No hay registros pendientes de validacion.</p>';
+        }
+    });
+}
+
+function mostrarDescalificar(recordId) {
+    const container = document.getElementById('acciones-' + recordId);
+    container.innerHTML =
+        '<input type="text" id="motivo-input-' + recordId + '" placeholder="Motivo de descalificacion" style="padding: 0.4rem; border: 1px solid var(--border); border-radius: 4px; margin-right: 0.5rem; min-width: 300px;">' +
+        '<button onclick="descalificar(\'' + recordId + '\')" style="padding: 0.4rem 0.8rem; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">Descalificar</button>';
+}
+
+function descalificar(recordId) {
+    const motivo = document.getElementById('motivo-input-' + recordId).value;
+    if (!motivo.trim()) { alert('El motivo es obligatorio'); return; }
+    fetch('/api/validacion/' + recordId + '/descalificar/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ motivo: motivo })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        document.getElementById('reg-' + recordId).remove();
+        if (document.querySelectorAll('.registro-card').length === 0) {
+            document.getElementById('pendientes-container').innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 2rem;">No hay registros pendientes de validacion.</p>';
+        }
+    });
+}
+
+cargarPendientes();
+</script>
+{% endif %}
+{% endblock %}

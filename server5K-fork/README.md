@@ -129,6 +129,14 @@ docker compose down
 # Detener y eliminar volúmenes (¡BORRA DATOS!)
 docker compose down -v
 
+# Limpiar TODO y empezar desde cero (datos + imágenes + caché)
+docker compose down -v --rmi all --remove-orphans
+docker system prune -af
+
+# Limpiar solo datos (mantiene imágenes)
+docker compose down -v
+docker compose up -d --build
+
 # Reiniciar un servicio específico
 docker compose restart web
 
@@ -180,12 +188,42 @@ docker compose build web
 
 ### Registros de Tiempo
 
--   `POST /api/equipos/{id}/registros/` - Registrar tiempo
+-   `POST /api/equipos/{id}/registros/` - Registrar tiempos (jueces)
 -   `GET /api/equipos/{id}/registros/estado/` - Estado de registros
+-   `POST /api/registros/` - **(Nuevo)** Registro automático desde Edge/Simulador
+
+### Validación Manual
+
+-   `GET /api/validacion/pendientes/` - Listar registros pendientes
+-   `POST /api/validacion/{id}/confirmar/` - Confirmar registro
+-   `POST /api/validacion/{id}/corregir/` - Corregir dorsal
+-   `POST /api/validacion/{id}/descalificar/` - Descalificar participante
+
+### Auditoría
+
+-   `GET /api/auditoria/` - Historial de acciones de validación
 
 ### WebSocket
 
--   `ws://host:8000/ws/juez/{juez_id}/` - Conexión WebSocket para tiempo real
+-   `ws://host:8000/ws/juez/{juez_id}/` - Conexión WebSocket para jueces (validación en tiempo real)
+-   `ws://host:8000/ws/competencia/{id}/` - Conexión pública para resultados en vivo
+
+### Panel de Validación
+
+-   `/jueces/register/` - Registro público de jueces
+-   `/jueces/login/` - Inicio de sesión de jueces
+-   `/validacion/` - Panel de validación de registros pendientes
+
+---
+
+## Flujo de Cronometraje Automático
+
+1. **Crear competencia** en el panel admin → se genera token UUID automáticamente
+2. **Configurar EDGE_TOKEN** en el Simulador o dispositivo Edge con el token de la competencia
+3. **El Edge/Simulador** envía `POST /api/registros/` con `{dorsal, tiempo_ms, confianza_ocr, evidencia_imagen?}`
+4. **OCR >= 95%** → registro validado automáticamente, clasificación actualizada en tiempo real
+5. **OCR < 95%** → registro pendiente, jueces notificados vía WebSocket
+6. **Jueces validan** desde el panel `/validacion/`: confirmar, corregir dorsal o descalificar
 
 ---
 

@@ -5,6 +5,7 @@ Vistas HTML para la interfaz web pública.
 
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Prefetch
+from django.contrib.auth.decorators import login_required
 from app.models import Competencia, Equipo, RegistroTiempo
 from app.models.equipo import CATEGORIA_CHOICES
 
@@ -77,8 +78,10 @@ def competencia_detail_view(request, pk):
     # Obtener filtro de categoría desde query params
     categoria_filtro = request.GET.get('categoria', '')
     
-    # Obtener equipos con tiempos
-    tiempos_qs = RegistroTiempo.objects.all().order_by('time')
+    # Obtener equipos con tiempos (solo validados/corregidos)
+    tiempos_qs = RegistroTiempo.objects.filter(
+        estado__in=['validado', 'corregido']
+    ).order_by('time')
     equipos_qs = Equipo.objects.filter(
         competition=competencia
     ).select_related('judge').prefetch_related(
@@ -124,7 +127,9 @@ def competencia_results_partial_view(request, pk):
 
     categoria_filtro = request.GET.get('categoria', '')
 
-    tiempos_qs = RegistroTiempo.objects.all().order_by('time')
+    tiempos_qs = RegistroTiempo.objects.filter(
+        estado__in=['validado', 'corregido']
+    ).order_by('time')
     equipos_qs = Equipo.objects.filter(
         competition=competencia
     ).select_related('judge').prefetch_related(
@@ -199,4 +204,20 @@ def equipo_detail_view(request, pk):
         'peor_tiempo_formateado': formatear_tiempo(peor_tiempo_ms),
         'jugadores_ausentes': jugadores_ausentes,
         'jugadores_completados': total_registros - jugadores_ausentes,
+    })
+
+
+@login_required(login_url='/jueces/login/')
+def validacion_panel_view(request):
+    """Panel de validacion de registros pendientes para jueces."""
+    if not hasattr(request.user, 'perfil_juez') or request.user.perfil_juez is None:
+        from django.shortcuts import redirect
+        return redirect('/')
+
+    competencia_activa = Competencia.objects.filter(is_active=True, is_running=True).first()
+    juez = request.user.perfil_juez
+
+    return render(request, 'app/validacion/panel.html', {
+        'juez': juez,
+        'competencia_activa': competencia_activa,
     })

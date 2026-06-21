@@ -39,16 +39,74 @@ class RegistroTiempo(models.Model):
 
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Fecha de creación")
 
+    origen = models.CharField(
+        max_length=15,
+        choices=[('automatico', 'Automático'), ('manual', 'Manual')],
+        default='manual',
+        verbose_name="Origen"
+    )
+    confianza_ocr = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Confianza OCR (%)"
+    )
+    evidencia_imagen = models.ImageField(
+        upload_to='evidencias/',
+        null=True,
+        blank=True,
+        verbose_name="Evidencia (imagen)"
+    )
+    estado = models.CharField(
+        max_length=15,
+        choices=[
+            ('validado', 'Validado'),
+            ('pendiente', 'Pendiente'),
+            ('corregido', 'Corregido'),
+            ('descalificado', 'Descalificado'),
+        ],
+        default='validado',
+        verbose_name="Estado"
+    )
+    dorsal_detectado = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Dorsal detectado"
+    )
+    dorsal_corregido = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Dorsal corregido"
+    )
+    motivo_descalificacion = models.TextField(
+        blank=True,
+        verbose_name="Motivo de descalificación"
+    )
+    validado_por = models.ForeignKey(
+        'Juez',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='validaciones',
+        verbose_name="Validado por"
+    )
+    validado_en = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de validación"
+    )
+
     class Meta:
         ordering = ['time']
         indexes = [
             models.Index(fields=['team', 'time']),
+            models.Index(fields=['estado', 'created_at']),
         ]
         verbose_name = "Registro de Tiempo"
         verbose_name_plural = "Registros de Tiempo"
 
     def __str__(self):
-        return f"Registro {self.record_id} - Equipo: {self.team.name} - {self.time} ms"
+        return f"Registro {self.record_id} - Equipo: {self.team.name} - {self.time} ms [{self.estado}]"
 
     @property
     def competition(self):

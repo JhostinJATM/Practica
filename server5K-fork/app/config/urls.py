@@ -12,6 +12,7 @@ from app.views import (
     RegistrarTiemposView,
     EstadoEquipoRegistrosView,
 )
+from app.views.registro_views import EdgeRegistroView, ValidacionPendientesView, ConfirmarRegistroView, CorregirDorsalView, DescalificarParticipanteView, AuditoriaListView
 
 
 def health_check(request):
@@ -40,6 +41,12 @@ urlpatterns = [
     # Endpoints de registros de tiempo (HTTP)
     path('equipos/<int:equipo_id>/registros/', RegistrarTiemposView.as_view(), name='registrar_tiempos'),
     path('equipos/<int:equipo_id>/registros/estado/', EstadoEquipoRegistrosView.as_view(), name='estado_registros'),
+    path('registros/', EdgeRegistroView.as_view(), name='edge_registro'),
+    path('validacion/pendientes/', ValidacionPendientesView.as_view(), name='validacion_pendientes'),
+    path('validacion/<uuid:record_id>/confirmar/', ConfirmarRegistroView.as_view(), name='validacion_confirmar'),
+    path('validacion/<uuid:record_id>/corregir/', CorregirDorsalView.as_view(), name='validacion_corregir'),
+    path('validacion/<uuid:record_id>/descalificar/', DescalificarParticipanteView.as_view(), name='validacion_descalificar'),
+    path('auditoria/', AuditoriaListView.as_view(), name='auditoria_list'),
     
     # Incluir rutas del router (Competencias y Equipos)
     path('', include(router.urls)),

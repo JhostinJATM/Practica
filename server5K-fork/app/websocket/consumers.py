@@ -97,6 +97,8 @@ class JuezConsumer(AsyncJsonWebsocketConsumer):
             self.competencia_group = f'competencia_{competencia_id}'
             await self.channel_layer.group_add(self.competencia_group, self.channel_name)
             logger.debug("Joined group %s for juez_id=%s", self.competencia_group, self.juez_id)
+            self.validacion_group = f'validacion_{competencia_id}'
+            await self.channel_layer.group_add(self.validacion_group, self.channel_name)
         
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         
@@ -134,6 +136,8 @@ class JuezConsumer(AsyncJsonWebsocketConsumer):
         try:
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
             await self.channel_layer.group_discard(self.competencia_group, self.channel_name)
+            if hasattr(self, 'validacion_group'):
+                await self.channel_layer.group_discard(self.validacion_group, self.channel_name)
         except Exception:
             pass
         logger.info("WebSocket disconnected: juez_id=%s code=%s", getattr(self, 'juez_id', None), close_code)
@@ -416,6 +420,16 @@ class JuezConsumer(AsyncJsonWebsocketConsumer):
 
         logger.debug("registros_actualizados sent juez_id=%s", self.juez_id)
 
+    async def registro_pendiente(self, event):
+        """
+        Notifica al juez que hay un nuevo registro pendiente de validacion.
+        """
+        data = event.get('data', {})
+        await self.send_json({
+            'tipo': 'registro_pendiente',
+            'data': data,
+        })
+
 
 class CompetenciaPublicConsumer(AsyncJsonWebsocketConsumer):
     """Consumer WebSocket público para ver resultados en vivo.
@@ -435,10 +449,19 @@ class CompetenciaPublicConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
+        ranking = await self._obtener_ranking()
         await self.send_json({
             'tipo': 'conexion_establecida',
             'competencia_id': int(self.competencia_id),
+            'ranking': ranking,
         })
+
+    @database_sync_to_async
+    def _obtener_ranking(self):
+        from app.services.results_service import ResultsService
+        service = ResultsService()
+        resultado = service.obtener_ranking_competencia(int(self.competencia_id))
+        return resultado.get('ranking', []) if resultado.get('exito') else []
 
     async def disconnect(self, close_code):
         try:

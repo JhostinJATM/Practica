@@ -1,6 +1,16 @@
 from django.db import models
+from django.conf import settings
+
 
 class Juez(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='perfil_juez',
+        verbose_name="Usuario Django"
+    )
     username = models.CharField(max_length=150, unique=True, verbose_name="Usuario")
     password = models.CharField(max_length=128, verbose_name="Contraseña")
 
@@ -32,10 +42,8 @@ class Juez(models.Model):
 
     @property
     def is_authenticated(self):
-        """Indica que el juez está autenticado cuando se usa como 'user'"""
         return True
-    
+
     @property
     def is_anonymous(self):
-        """Indica que el juez no es anónimo"""
         return False

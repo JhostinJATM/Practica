@@ -115,3 +115,31 @@ class SincronizarRegistrosSerializer(serializers.Serializer):
                 raise serializers.ValidationError("El tiempo no puede ser negativo")
         
         return value
+
+
+class EdgeRegistroSerializer(serializers.Serializer):
+    """Serializer para registros enviados desde Edge o Simulador."""
+    dorsal = serializers.IntegerField(min_value=1)
+    tiempo_ms = serializers.IntegerField(min_value=0)
+    confianza_ocr = serializers.FloatField(min_value=0.0, max_value=100.0)
+    evidencia_imagen = serializers.CharField(required=False, allow_null=True)
+
+    def validate_dorsal(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("El dorsal debe ser un numero positivo")
+        return value
+
+    def validate_tiempo_ms(self, value):
+        if value < 0:
+            raise serializers.ValidationError("El tiempo no puede ser negativo")
+        return value
+
+
+class ValidacionCorregirSerializer(serializers.Serializer):
+    """Serializer para la accion de corregir dorsal."""
+    dorsal_corregido = serializers.IntegerField(min_value=1)
+
+
+class ValidacionDescalificarSerializer(serializers.Serializer):
+    """Serializer para la accion de descalificar."""
+    motivo = serializers.CharField(min_length=1, max_length=500)

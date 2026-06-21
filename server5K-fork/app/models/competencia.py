@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+import uuid
 
 
 class Competencia(models.Model):
@@ -10,6 +11,12 @@ class Competencia(models.Model):
     is_running = models.BooleanField(default=False, verbose_name="En curso")
     started_at = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de inicio")
     finished_at = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de finalización")
+    token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        verbose_name="Token de competencia"
+    )
 
     class Meta:
         verbose_name = "Competencia"

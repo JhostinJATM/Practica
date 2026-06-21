@@ -7,6 +7,7 @@ from .competencia import Competencia
 from .juez import Juez
 from .equipo import Equipo, ResultadoEquipo
 from .registrotiempo import RegistroTiempo
+from .auditoria import AuditoriaRegistro
 
 __all__ = [
     'Competencia',
@@ -14,4 +15,5 @@ __all__ = [
     'Equipo',
     'RegistroTiempo',
     'ResultadoEquipo',
+    'AuditoriaRegistro',
 ]

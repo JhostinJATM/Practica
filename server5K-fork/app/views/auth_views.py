@@ -5,13 +5,25 @@ Vistas relacionadas con autenticación y gestión de sesiones.
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
 from drf_spectacular.utils import extend_schema
 from app.serializers import JuezMeSerializer
 from django.db.models import Q
+from django.contrib.auth import login, authenticate
+from django.shortcuts import render, redirect
+from django.views import View
+
+
+class IsJudgeAuthenticated(BasePermission):
+    """Permiso que verifica que el usuario tenga un perfil de juez activo."""
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return hasattr(request.user, 'perfil_juez') and request.user.perfil_juez is not None
 
 class LoginView(APIView):
     """
@@ -240,3 +252,95 @@ class RefreshTokenView(APIView):
                 {'error': f'Error al refrescar token: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class JudgeRegisterView(View):
+    """Vista de registro público para jueces."""
+
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('ui:validacion_panel')
+        return render(request, 'app/jueces/register.html')
+
+    def post(self, request):
+        from django.contrib.auth.models import User
+        from app.models import Juez
+
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+
+        errors = {}
+        if not username:
+            errors['username'] = 'El nombre de usuario es obligatorio.'
+        if User.objects.filter(username=username).exists():
+            errors['username'] = 'El nombre de usuario ya existe.'
+        if len(password) < 8:
+            errors['password'] = 'La contrasena debe tener al menos 8 caracteres.'
+
+        if errors:
+            return render(request, 'app/jueces/register.html', {
+                'errors': errors,
+                'data': request.POST,
+            })
+
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+        )
+        juez = Juez.objects.create(
+            user=user,
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+        )
+        juez.set_password(password)
+        juez.save()
+
+        login(request, user)
+        return redirect('ui:validacion_panel')
+
+
+class JudgeLoginView(View):
+    """Vista de inicio de sesion para jueces."""
+
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('ui:validacion_panel')
+        return render(request, 'app/jueces/login.html')
+
+    def post(self, request):
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is None:
+            return render(request, 'app/jueces/login.html', {
+                'error': 'Credenciales invalidas.',
+                'data': request.POST,
+            })
+
+        if not hasattr(user, 'perfil_juez') or user.perfil_juez is None:
+            return render(request, 'app/jueces/login.html', {
+                'error': 'Este usuario no tiene perfil de juez.',
+                'data': request.POST,
+            })
+
+        login(request, user)
+        return redirect('ui:validacion_panel')
+
+
+class JudgeLogoutView(View):
+    """Cierra la sesion del juez."""
+
+    def get(self, request):
+        from django.contrib.auth import logout
+        logout(request)
+        return redirect('ui:juez_login')

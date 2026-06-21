@@ -100,6 +100,8 @@ multidict==6.7.0
     #   yarl
 packaging==25.0
     # via incremental
+pillow==11.3.0
+    # via server5k (pyproject.toml)
 propcache==0.4.1
     # via
     #   aiohttp
