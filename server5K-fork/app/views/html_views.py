@@ -24,18 +24,25 @@ def _procesar_equipos(equipos_queryset):
     for equipo in equipos_queryset:
         tiempos_competencia = [t for t in equipo.prefetched_tiempos]
 
+        # Separar registros descalificados (por juez) de los validos
+        tiempos_validos = [t for t in tiempos_competencia if t.estado != 'descalificado']
+        tiempos_descalificados = [t for t in tiempos_competencia if t.estado == 'descalificado']
+        
+        # Detectar si el equipo fue descalificado por el juez
+        descalificado_por_juez = len(tiempos_descalificados) > 0
+
         # IMPORTANTE UX: si todavía no hay registros enviados para este equipo,
         # no se muestra en resultados (pantalla vacía hasta el primer envío).
         if not tiempos_competencia:
             continue
         
-        # Detectar jugadores ausentes (tiempo = 0 ms)
-        jugadores_ausentes = sum(1 for t in tiempos_competencia if t.time == 0)
+        # Detectar jugadores ausentes (tiempo = 0 ms) solo entre registros validos
+        jugadores_ausentes = sum(1 for t in tiempos_validos if t.time == 0) + len(tiempos_descalificados)
         equipo.jugadores_ausentes = jugadores_ausentes
-        equipo.descalificado = jugadores_ausentes > 0
+        equipo.descalificado = jugadores_ausentes > 0 or descalificado_por_juez
         
-        equipo.tiempo_total_ms = sum(t.time for t in tiempos_competencia)
-        equipo.mejor_tiempo_ms = min(t.time for t in tiempos_competencia if t.time > 0) if any(t.time > 0 for t in tiempos_competencia) else 0
+        equipo.tiempo_total_ms = sum(t.time for t in tiempos_validos)
+        equipo.mejor_tiempo_ms = min(t.time for t in tiempos_validos if t.time > 0) if any(t.time > 0 for t in tiempos_validos) else 0
         
         # Formatear sin milisegundos
         total_seconds = equipo.tiempo_total_ms // 1000
@@ -52,8 +59,8 @@ def _procesar_equipos(equipos_queryset):
         mejor_h = mejor_seconds // 3600
         equipo.mejor_tiempo_formateado = f"{mejor_h:02d}:{mejor_m:02d}:{mejor_s:02d}"
         
-        equipo.num_registros = len(equipo.prefetched_tiempos)
-        equipo.jugadores_completados = equipo.num_registros - jugadores_ausentes
+        equipo.num_registros = len(tiempos_competencia)
+        equipo.jugadores_completados = len(tiempos_validos) - sum(1 for t in tiempos_validos if t.time == 0)
         
         if equipo.descalificado:
             equipos_descalificados.append(equipo)
@@ -78,9 +85,9 @@ def competencia_detail_view(request, pk):
     # Obtener filtro de categoría desde query params
     categoria_filtro = request.GET.get('categoria', '')
     
-    # Obtener equipos con tiempos (solo validados/corregidos)
+    # Obtener equipos con tiempos (validados, corregidos y descalificados)
     tiempos_qs = RegistroTiempo.objects.filter(
-        estado__in=['validado', 'corregido']
+        estado__in=['validado', 'corregido', 'descalificado']
     ).order_by('time')
     equipos_qs = Equipo.objects.filter(
         competition=competencia
@@ -128,7 +135,7 @@ def competencia_results_partial_view(request, pk):
     categoria_filtro = request.GET.get('categoria', '')
 
     tiempos_qs = RegistroTiempo.objects.filter(
-        estado__in=['validado', 'corregido']
+        estado__in=['validado', 'corregido', 'descalificado']
     ).order_by('time')
     equipos_qs = Equipo.objects.filter(
         competition=competencia
@@ -217,7 +224,15 @@ def validacion_panel_view(request):
     competencia_activa = Competencia.objects.filter(is_active=True, is_running=True).first()
     juez = request.user.perfil_juez
 
+    # Generar token JWT para que el WebSocket pueda autenticarse
+    from rest_framework_simplejwt.tokens import RefreshToken
+    refresh = RefreshToken()
+    refresh['juez_id'] = juez.id
+    refresh['username'] = juez.username
+    ws_token = str(refresh.access_token)
+
     return render(request, 'app/validacion/panel.html', {
         'juez': juez,
         'competencia_activa': competencia_activa,
+        'ws_token': ws_token,
     })

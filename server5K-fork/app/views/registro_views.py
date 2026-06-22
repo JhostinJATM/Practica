@@ -485,11 +485,37 @@ class ConfirmarRegistroView(APIView):
         if not resultado['exito']:
             return Response({"error": resultado['error']}, status=status.HTTP_400_BAD_REQUEST)
 
+        registro = resultado['registro']
+        self._notificar_resultados(registro)
+
         return Response({
             "mensaje": "Registro confirmado exitosamente",
-            "record_id": str(resultado['registro'].record_id),
-            "estado": resultado['registro'].estado,
+            "record_id": str(registro.record_id),
+            "estado": registro.estado,
         })
+
+    def _notificar_resultados(self, registro):
+        try:
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                competencia_id = registro.team.competition_id
+                group = f'competencia_{competencia_id}'
+                async_to_sync(channel_layer.group_send)(
+                    group,
+                    {
+                        'type': 'registros_actualizados',
+                        'data': {
+                            'equipo_id': registro.team_id,
+                            'equipo_nombre': registro.team.name,
+                            'equipo_dorsal': registro.team.number,
+                            'total_registros': RegistroTiempo.objects.filter(
+                                team=registro.team, estado__in=['validado', 'corregido']
+                            ).count(),
+                        }
+                    }
+                )
+        except Exception as e:
+            logger.warning(f"[ConfirmarRegistro] No se pudo notificar resultados: {e}")
 
 
 class CorregirDorsalView(APIView):
@@ -520,6 +546,8 @@ class CorregirDorsalView(APIView):
             return Response({"error": resultado['error']}, status=status.HTTP_400_BAD_REQUEST)
 
         registro = resultado['registro']
+        self._notificar_resultados(registro)
+
         return Response({
             "mensaje": "Dorsal corregido exitosamente",
             "record_id": str(registro.record_id),
@@ -527,6 +555,29 @@ class CorregirDorsalView(APIView):
             "dorsal_corregido": registro.dorsal_corregido,
             "estado": registro.estado,
         })
+
+    def _notificar_resultados(self, registro):
+        try:
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                competencia_id = registro.team.competition_id
+                group = f'competencia_{competencia_id}'
+                async_to_sync(channel_layer.group_send)(
+                    group,
+                    {
+                        'type': 'registros_actualizados',
+                        'data': {
+                            'equipo_id': registro.team_id,
+                            'equipo_nombre': registro.team.name,
+                            'equipo_dorsal': registro.team.number,
+                            'total_registros': RegistroTiempo.objects.filter(
+                                team=registro.team, estado__in=['validado', 'corregido']
+                            ).count(),
+                        }
+                    }
+                )
+        except Exception as e:
+            logger.warning(f"[CorregirDorsal] No se pudo notificar resultados: {e}")
 
 
 class DescalificarParticipanteView(APIView):
@@ -557,12 +608,37 @@ class DescalificarParticipanteView(APIView):
             return Response({"error": resultado['error']}, status=status.HTTP_400_BAD_REQUEST)
 
         registro = resultado['registro']
+        self._notificar_resultados(registro)
+
         return Response({
             "mensaje": "Participante descalificado exitosamente",
             "record_id": str(registro.record_id),
             "motivo": registro.motivo_descalificacion,
             "estado": registro.estado,
         })
+
+    def _notificar_resultados(self, registro):
+        try:
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                competencia_id = registro.team.competition_id
+                group = f'competencia_{competencia_id}'
+                async_to_sync(channel_layer.group_send)(
+                    group,
+                    {
+                        'type': 'registros_actualizados',
+                        'data': {
+                            'equipo_id': registro.team_id,
+                            'equipo_nombre': registro.team.name,
+                            'equipo_dorsal': registro.team.number,
+                            'total_registros': RegistroTiempo.objects.filter(
+                                team=registro.team, estado__in=['validado', 'corregido']
+                            ).count(),
+                        }
+                    }
+                )
+        except Exception as e:
+            logger.warning(f"[DescalificarParticipante] No se pudo notificar resultados: {e}")
 
 
 class AuditoriaListView(APIView):
@@ -589,3 +665,30 @@ class AuditoriaListView(APIView):
         } for a in queryset[:100]]
 
         return Response({"total": queryset.count(), "auditorias": data})
+
+
+class EstadoRegistroView(APIView):
+    """GET /api/registros/<record_id>/estado/ - Consulta el estado de un registro."""
+
+    authentication_classes = [EdgeTokenAuth]
+    permission_classes = []
+
+    def get(self, request, record_id):
+        try:
+            registro = RegistroTiempo.objects.get(record_id=record_id)
+        except RegistroTiempo.DoesNotExist:
+            return Response({"error": "Registro no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        data = {
+            "record_id": str(registro.record_id),
+            "estado": registro.estado,
+            "dorsal_detectado": registro.dorsal_detectado,
+            "tiempo_ms": registro.time,
+            "equipo_id": registro.team_id,
+            "equipo_nombre": registro.team.name,
+        }
+
+        if registro.estado == 'descalificado':
+            data["motivo_descalificacion"] = registro.motivo_descalificacion
+
+        return Response(data)

@@ -29,7 +29,7 @@ _cargar_env()
 
 from generador import GeneradorEventos
 from cliente_http import ClienteHTTP
-from persistencia import guardar_registro, obtener_pendientes, marcar_enviado, incrementar_intentos
+from persistencia import guardar_registro, obtener_pendientes, obtener_pendientes_con_record_id, marcar_enviado, incrementar_intentos
 
 
 class SimuladorApp:
@@ -47,6 +47,7 @@ class SimuladorApp:
 
         self._construir_interfaz()
         self._actualizar_estado_conexion()
+        self._iniciar_verificador_pendientes()
 
     def _construir_interfaz(self):
         frame_principal = ttk.Frame(self.root, padding=10)
@@ -174,7 +175,11 @@ class SimuladorApp:
 
         if exito:
             estado = data.get('estado', '?')
+            record_id = data.get('record_id')
             self.agregar_log(f'Dorsal {dorsal} | {tiempo_ms}ms | OCR {confianza}% | {estado}')
+            # Si quedo pendiente de validacion, guardar localmente para dar seguimiento
+            if estado == 'pendiente' and record_id:
+                guardar_registro(dorsal, tiempo_ms, confianza, record_id)
         else:
             guardar_registro(dorsal, tiempo_ms, confianza)
             self.agregar_log(f'[PENDIENTE] Dorsal {dorsal} | {tiempo_ms}ms | OCR {confianza}% - Guardado localmente')
@@ -183,6 +188,32 @@ class SimuladorApp:
         self.agregar_log('Simulador Edge iniciado')
         self.agregar_log(f'Backend: {self.cliente.backend_url}')
         self.root.mainloop()
+
+    def _iniciar_verificador_pendientes(self):
+        """Hilo en segundo plano que verifica el estado de registros pendientes."""
+        self._hilo_verificador = threading.Thread(target=self._verificar_pendientes, daemon=True)
+        self._hilo_verificador.start()
+
+    def _verificar_pendientes(self):
+        """Verifica periodicamente registros pendientes contra el servidor."""
+        while True:
+            time.sleep(10)  # Verificar cada 10 segundos
+            try:
+                pendientes = obtener_pendientes_con_record_id()
+                for p in pendientes:
+                    exito, data = self.cliente.verificar_estado_registro(p['record_id'])
+                    if not exito:
+                        continue
+                    estado = data.get('estado', '')
+                    if estado in ('validado', 'corregido'):
+                        marcar_enviado(p['id'])
+                        self.agregar_log(f'[VALIDADO] Registro {p["record_id"][:8]}... confirmado por juez ({estado})')
+                    elif estado == 'descalificado':
+                        marcar_enviado(p['id'])
+                        motivo = data.get('motivo_descalificacion', 'sin motivo')
+                        self.agregar_log(f'[DESCALIFICADO] Registro {p["record_id"][:8]}... descalificado: {motivo}')
+            except Exception:
+                pass
 
 
 if __name__ == '__main__':

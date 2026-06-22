@@ -62,7 +62,28 @@ class ClienteHTTP:
         for p in pendientes:
             exito, data = self.enviar_registro(p['dorsal'], p['tiempo_ms'], p['confianza_ocr'])
             if exito:
-                me(p['id'])
-                self.log(f'[Reenviado] Dorsal {p["dorsal"]} - {p["tiempo_ms"]}ms - {data.get("estado", "?")}')
+                estado = data.get('estado', '?')
+                record_id = data.get('record_id')
+                # Si quedo pendiente, actualizar record_id en la BD local
+                if estado == 'pendiente' and record_id and not p.get('record_id'):
+                    from persistencia import obtener_conexion
+                    conn = obtener_conexion()
+                    conn.execute('UPDATE registros_pendientes SET record_id = ? WHERE id = ?', (record_id, p['id']))
+                    conn.commit()
+                    conn.close()
+                else:
+                    me(p['id'])
+                    self.log(f'[Reenviado] Dorsal {p["dorsal"]} - {p["tiempo_ms"]}ms - {data.get("estado", "?")}')
             else:
                 ii(p['id'])
+
+    def verificar_estado_registro(self, record_id):
+        """Consulta el estado actual de un registro en el servidor."""
+        url = f'{self.backend_url}/api/registros/{record_id}/estado/'
+        try:
+            resp = self._sesion.get(url, timeout=10)
+            if resp.status_code == 200:
+                return True, resp.json()
+            return False, resp.json().get('error', f'Error {resp.status_code}')
+        except Exception as e:
+            return False, str(e)

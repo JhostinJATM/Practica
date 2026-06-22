@@ -12,7 +12,7 @@ from app.views import (
     RegistrarTiemposView,
     EstadoEquipoRegistrosView,
 )
-from app.views.registro_views import EdgeRegistroView, ValidacionPendientesView, ConfirmarRegistroView, CorregirDorsalView, DescalificarParticipanteView, AuditoriaListView
+from app.views.registro_views import EdgeRegistroView, ValidacionPendientesView, ConfirmarRegistroView, CorregirDorsalView, DescalificarParticipanteView, AuditoriaListView, EstadoRegistroView
 
 
 def health_check(request):
@@ -46,6 +46,7 @@ urlpatterns = [
     path('validacion/<uuid:record_id>/confirmar/', ConfirmarRegistroView.as_view(), name='validacion_confirmar'),
     path('validacion/<uuid:record_id>/corregir/', CorregirDorsalView.as_view(), name='validacion_corregir'),
     path('validacion/<uuid:record_id>/descalificar/', DescalificarParticipanteView.as_view(), name='validacion_descalificar'),
+    path('registros/<uuid:record_id>/estado/', EstadoRegistroView.as_view(), name='registro_estado'),
     path('auditoria/', AuditoriaListView.as_view(), name='auditoria_list'),
     
     # Incluir rutas del router (Competencias y Equipos)

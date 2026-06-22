@@ -25,7 +25,7 @@
 
 <script>
 const COMPETENCIA_ID = {{ competencia_activa.id }};
-const WS_URL = 'ws://' + window.location.host + '/ws/juez/' + '{{ juez.id }}/' + '?token=' + getCookie('access_token');
+const WS_URL = 'ws://' + window.location.host + '/ws/juez/' + '{{ juez.id }}/' + '?token={{ ws_token }}';
 
 function getCookie(name) {
     let value = "; " + document.cookie;
@@ -161,6 +161,69 @@ function descalificar(recordId) {
 }
 
 cargarPendientes();
+
+// Conexion WebSocket para recibir nuevos registros pendientes en tiempo real
+(function() {
+    var wsUrl = WS_URL;
+    var ws;
+    var reconnectDelay = 1000;
+
+    function connect() {
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = function() {
+            console.log('[Validacion] WebSocket conectado');
+            reconnectDelay = 1000;
+            setInterval(function() {
+                if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ tipo: 'ping' }));
+            }, 25000);
+        };
+
+        ws.onmessage = function(evt) {
+            var msg;
+            try { msg = JSON.parse(evt.data); } catch(e) { return; }
+
+            if (msg.tipo === 'registro_pendiente') {
+                var r = msg.data;
+                var existente = document.getElementById('reg-' + r.record_id);
+                if (existente) return;
+
+                var container = document.getElementById('pendientes-container');
+                var placeholder = container.querySelector('p');
+                if (placeholder && container.children.length === 1) {
+                    container.innerHTML = '';
+                }
+
+                var div = document.createElement('div');
+                div.innerHTML = renderRegistro(r);
+                var card = div.firstElementChild;
+                container.insertBefore(card, container.firstChild);
+
+                card.style.transition = 'all 0.3s ease';
+                card.style.boxShadow = '0 0 0 3px var(--primary)';
+                setTimeout(function() { card.style.boxShadow = ''; }, 2000);
+            }
+
+            if (msg.tipo === 'registros_actualizados') {
+                cargarPendientes();
+            }
+        };
+
+        ws.onclose = function(event) {
+            console.log('[Validacion] WebSocket desconectado, reconectando en ' + reconnectDelay + 'ms');
+            setTimeout(function() {
+                reconnectDelay = Math.min(reconnectDelay * 2, 15000);
+                connect();
+            }, reconnectDelay);
+        };
+
+        ws.onerror = function(err) {
+            console.error('[Validacion] Error WebSocket:', err);
+        };
+    }
+
+    connect();
+})();
 </script>
 {% endif %}
 {% endblock %}
